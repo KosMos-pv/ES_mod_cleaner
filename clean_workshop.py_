@@ -1,0 +1,239 @@
+
+from os import listdir, remove
+from time import sleep
+from time import asctime
+from shutil import (
+    rmtree,
+    copy as filecopy
+)
+from renpy.config import basedir as renpy_base
+from urllib import urlopen
+from os.path import (
+    abspath,
+    isfile,
+    dirname,
+    isdir,
+    exists as os_exists,
+    join as os_join,
+)
+from re import (
+    compile as re_comp,
+    sub as re_sub,
+    DOTALL
+)
+
+__version__ = 1.7
+
+
+class FolderCleaner(object):
+
+    WSLINK = (
+        "http://steamcommunity.com/sharedfiles/filedetails/?l=russian&id={data}"
+    )
+
+    def __init__(self, write_log=True):
+
+        _m = lambda x: abspath(os_join(renpy_base, "renpy", x))
+        self.original_bootstrap = _m("bootstrap.py")
+        self.original_bootstrap_backup = _m("bootstrap.py_backup")
+        self.actual_cleaner = _m("clean_workshop.py")
+        self.pyo_files = map(
+            _m,
+            ("bootstrap.pyo", "clean_workshop.pyo")
+        )
+
+        self.__basedir = os_join(
+            dirname(dirname(renpy_base)),
+            "workshop"
+        )
+        self.info_file = os_join(self.__basedir, "appworkshop_331470.acf")
+        self.workshop_dir = os_join(self.__basedir, "content", "331470")
+
+        for p in (self.__basedir, self.info_file, self.workshop_dir):
+            if not os_exists(p):
+                raise Exception((u'File "%s"not defined.' % p))
+
+        self._error_answers = (
+            u"steam :: \u043e\u0448\u0438\u0431\u043a\u0430",
+            u"steam community :: error",
+            u"comunidad steam :: error",
+            u"di steam :: errore",
+            u'steam \u793e\u7fa4 :: \u932f\u8aa4'
+        )
+
+        self.unescape_table = {
+            u"&quot;": u'"',
+            u"&amp;": u"&",
+            u"&lt;": u"<",
+            u"&gt;": u">"
+        }
+
+        self.need_log = bool(write_log)
+        self._all_data_tokens = re_comp(r"\{.+\}", DOTALL)
+        self.title_tokens = re_comp(r"<title>.*</title>", DOTALL)
+        self.metadata_tokens = re_comp(r'<meta[^<]+>*', DOTALL)
+        self.name_tokens = re_comp(r':.+<', DOTALL)
+        self.update_connection()
+
+        self.logfile = abspath(os_join(renpy_base, "deleted_mods.txt"))
+        self._trace_log = abspath(os_join(renpy_base, "cleaner_traceback.txt"))
+        self.error_format = u'{tm}. "{name}": {error}.\n'
+        self.error_codes = (
+            u"Successfully deleted",
+            u"Not deleted",
+            u"An error occurred while deleting: ({traceback})"
+        )
+        with open(self._trace_log, "wb"):
+            pass
+
+    def cleaner_is_installed(self):
+        for p in listdir(self.workshop_dir):
+            pth = abspath(os_join(self.workshop_dir, p))
+            if isdir(pth):
+                full_pth = abspath(os_join(pth, "clean_workshop.py_"))
+                if isfile(full_pth):
+                    return True
+        return False
+
+    def update_connection(self):
+        self._internet = self.network_is_active()
+
+    @staticmethod
+    def network_is_active():
+        try:
+            urlopen("http://www.google.com")
+            return True
+        except:
+            return False
+
+    def get_dict_from_info_file(self):
+        with open(self.info_file, "rb") as _file:
+            str_data = _file.read().decode("utf-8", "ignore")
+        str_data = self._all_data_tokens.search(str_data)
+        if not str_data:
+            return
+        str_data = str_data.group()
+        str_data = re_sub(r"\n+\s+\{", ": {", str_data)
+        str_data = re_sub(r"\"\n+", "\", \n", str_data)
+        str_data = re_sub(r"\"\s+\"", "\": \"", str_data)
+        str_data = re_sub(r"\}\n+", "}, \n", str_data)
+        return eval(str_data)
+
+    def get_mod_name(self, reg_search):
+        reg_search = reg_search.group()[2:-1].strip()
+        for e, r in self.unescape_table.iteritems():
+            reg_search = reg_search.replace(e, r)
+        return reg_search
+
+    def parse_workshop_dir(self):
+        for dir in listdir(self.workshop_dir):
+            if dir.isdigit() and isdir(os_join(self.workshop_dir, dir)):
+                yield dir
+                continue
+            self.add_to_log(dir, 1)
+
+    def get_installed_mods(self):
+        return self.get_dict_from_info_file().get(
+            "WorkshopItemDetails",
+            {}
+        ).iterkeys()
+
+    def check_in_workshop(self, dir_id):
+
+        if self._internet:
+            try:
+                url = self.WSLINK.format(data=dir_id)
+                url_page = urlopen(url)
+                url_textdata = url_page.read()
+                url_page.close()
+                if url_page.code != 200:
+                    self._write_trace(url_textdata)
+                    raise Exception(
+                        u"Answer code is {0}.".format(url_page.code)
+                    )
+                if isinstance(url_textdata, str):
+                    url_textdata = unicode(url_textdata, "utf-8", "ignore")
+                title_data = self.title_tokens.search(url_textdata)
+                if not title_data:
+                    self._write_trace(url_textdata)
+                    raise Exception(u"Error for read title.")
+                _orig_name = title_data.group()
+                title_data = _orig_name.strip().lower()
+                for er in self._error_answers:
+                    if er in title_data:
+                        return False
+                metadata = self.metadata_tokens.search(url_textdata)
+                if metadata:
+                    metadata = metadata.group().strip().lower()
+                else:
+                    metadata = u""
+                if u"everlasting summer" not in metadata:
+                    return False
+                mod_name = self.name_tokens.search(_orig_name)
+                if mod_name:
+                    return self.get_mod_name(mod_name)
+            except Exception as ex:
+                raise Exception(
+                    u"Directory id - {0}".format(dir_id),
+                    ex.message,
+                    *ex.args
+                )
+        return u"Mod name is not defined."
+
+    def _write_trace(self, uni_text):
+        if isinstance(uni_text, unicode):
+            uni_text = uni_text.encode("utf-8", "ignore")
+        with open(self._trace_log, "ab") as traceFile:
+            traceFile.write(uni_text)
+            traceFile.write("\n\n\n\n\n\n")
+
+    def get_dirs_for_delete(self):
+        _mods = tuple(self.get_installed_mods())
+        self.update_connection()
+        for dir in self.parse_workshop_dir():
+            if dir not in _mods:
+                _check_in_WS = self.check_in_workshop(dir)
+                if isinstance(_check_in_WS, basestring):
+                    yield (os_join(self.workshop_dir, dir), _check_in_WS)
+                else:
+                    self.add_to_log(dir, 1)
+
+    def delete_self(self):
+        _files_for_del = self.pyo_files + [self.actual_cleaner]
+        for f in _files_for_del:
+            if isfile(f):
+                remove(f)
+        if isfile(self.original_bootstrap_backup):
+            filecopy(
+                self.original_bootstrap_backup,
+                self.original_bootstrap
+            )
+            remove(self.original_bootstrap_backup)
+
+    def start_delete(self):
+
+        if not self.cleaner_is_installed():
+            self.delete_self()
+            return
+
+        for dir, ws_name in self.get_dirs_for_delete():
+            try:
+                rmtree(dir)
+                self.add_to_log(ws_name, 0)
+                sleep(1.)
+            except WindowsError as exc:
+                self.add_to_log(ws_name, 2, exc.message)
+
+    def add_to_log(self, dir_or_mod_name, error_code, error_text=u""):
+        if not self.need_log:
+            return
+        text = self.error_format.format(
+            tm=asctime(),
+            name=dir_or_mod_name.strip(),
+            error=self.error_codes[error_code].format(
+                traceback=error_text
+            )
+        )
+        txt_byte = text.encode("utf-8", "ignore")
+        with open(self.logfile, "ab") as logFileObj:
+            logFileObj.write(txt_byte)
