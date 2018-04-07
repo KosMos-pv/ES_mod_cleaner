@@ -22,7 +22,7 @@ from re import (
     DOTALL
 )
 
-__version__ = 1.7
+__version__ = 1.71
 
 
 class FolderCleaner(object):
@@ -51,28 +51,28 @@ class FolderCleaner(object):
 
         for p in (self.__basedir, self.info_file, self.workshop_dir):
             if not os_exists(p):
-                raise Exception((u'File "%s"not defined.' % p))
+                raise Exception((u'File "{0}" not defined.'.format(p)))
 
         self._error_answers = (
             u"steam :: \u043e\u0448\u0438\u0431\u043a\u0430",
             u"steam community :: error",
             u"comunidad steam :: error",
             u"di steam :: errore",
-            u'steam \u793e\u7fa4 :: \u932f\u8aa4'
+            u"steam \u793e\u7fa4 :: \u932f\u8aa4"
         )
 
         self.unescape_table = {
             u"&quot;": u'"',
-            u"&amp;": u"&",
-            u"&lt;": u"<",
-            u"&gt;": u">"
+            u"&amp;": u'&',
+            u"&lt;": u'<',
+            u"&gt;": u'>'
         }
 
         self.need_log = bool(write_log)
         self._all_data_tokens = re_comp(r"\{.+\}", DOTALL)
         self.title_tokens = re_comp(r"<title>.*</title>", DOTALL)
-        self.metadata_tokens = re_comp(r'<meta[^<]+>*', DOTALL)
-        self.name_tokens = re_comp(r':.+<', DOTALL)
+        self.metadata_tokens = re_comp(r"<meta[^<]+>*", DOTALL)
+        self.name_tokens = re_comp(r":.+<", DOTALL)
         self.update_connection()
 
         self.logfile = abspath(os_join(renpy_base, "deleted_mods.txt"))
@@ -173,12 +173,8 @@ class FolderCleaner(object):
                 if mod_name:
                     return self.get_mod_name(mod_name)
             except Exception as ex:
-                raise Exception(
-                    u"Directory id - {0}".format(dir_id),
-                    ex.message,
-                    *ex.args
-                )
-        return u"Mod name is not defined."
+                pass
+        return False
 
     def _write_trace(self, uni_text):
         if isinstance(uni_text, unicode):
