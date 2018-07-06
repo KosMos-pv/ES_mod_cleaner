@@ -1,71 +1,77 @@
 
 init python:
-
-    from re import compile as re_compile
+    import re
+    import __builtin__ as bltIn
     from shutil import copy as filecopy
-    from __builtin__ import (
-        filter as filter_fix,
-        map as fix_map
-    )
-    from os import remove
-    from os.path import (
-        abspath,
-        isfile,
-        join as os_join
+    from os import (
+        remove,
+        path
     )
 
-    class CleanerInitializer(object):
+    class __CleanerInitializer(object):
 
         def __init__(self):
 
-            _l = lambda x: abspath(renpy.loader.transfn(x))
-            _m = lambda x: abspath(os_join(renpy.config.basedir, "renpy", x))
+            self.__modified_bootstrap = self._find_file(
+                ("modified_bootstrap.py_")
+            )
+            self.__not_changed_bootstrap = self._find_file(
+                ("not_changed_bootstrap.py_")
+            )
+            self.__cleaner_file = self._find_file("clean_workshop.py_")
 
-            self.version_re = re_compile(r"__version__.+=.+")
+            self.__original_bootstrap = self._renpy_dir("bootstrap.py")
+            self.__original_bootstrap_backup = self.get_backup_filename()
+            self.__actual_cleaner = self._renpy_dir("clean_workshop.py")
 
-            self.bootstrap = _l("bootstrap.py_")
-            self.cleaner_file = _l("clean_workshop.py_")
-
-            self.original_bootstrap = _m("bootstrap.py")
-            self.original_bootstrap_backup = _m("bootstrap.py_backup")
-            self.actual_cleaner = _m("clean_workshop.py")
-
-            self.pyo_files = fix_map(
-                _m,
-                ("bootstrap.pyo", "clean_workshop.pyo")
+            self.__pyo_files = tuple(
+                bltIn.map(
+                    lambda x: "{0}.pyo".format(*path.splitext(x)),
+                    (self.__original_bootstrap, self.__actual_cleaner)
+                )
             )
 
+        def _renpy_dir(self, filename):
+            return path.abspath(
+                path.join(renpy.config.basedir, "renpy", filename)
+            )
+
+        def _find_file(self, filename):
+            try:
+                _filepath = renpy.loader.transfn(filename)
+            except Exception:
+                raise Exception(u"Файл {0!r} не обнаружен.".format(filename))
+            return path.abspath(_filepath)
+
+        def get_backup_filename(self):
+            name, ext = path.splitext(self.__original_bootstrap)
+            return u"{0}{1}".format(name, u"{0}_backup".format(ext))
+
         def del_pyo(self):
-            for f in self.pyo_files:
-                if isfile(f):
+            for f in self.__pyo_files:
+                if path.isfile(f):
                     remove(f)
 
         def start_copy(self):
 
             if self.is_need_copy():
-                self.backup()
                 self.del_pyo()
-                filecopy(self.bootstrap, self.original_bootstrap)
-                filecopy(self.cleaner_file, self.actual_cleaner)
-                return True
-            return False
 
-        def backup(self):
-            if not isfile(self.original_bootstrap_backup):
                 filecopy(
-                    self.original_bootstrap,
-                    self.original_bootstrap_backup
+                    self.__not_changed_bootstrap,
+                    self.__original_bootstrap_backup
                 )
+                filecopy(self.__modified_bootstrap, self.__original_bootstrap)
+                filecopy(self.__cleaner_file, self.__actual_cleaner)
 
-        def is_need_copy(self, force_update=False):
+        def is_need_copy(self):
 
-            if force_update:
+            if not path.isfile(self.__actual_cleaner):
                 return True
-
-            if not isfile(self.actual_cleaner):
-                return True
-
-            from renpy.clean_workshop import __version__ as ver
+            try:
+                from renpy.clean_workshop import __version__ as ver
+            except ImportError:
+                ver = (0, 0, 0)
             if self.parse_version() > ver:
                 return True
 
@@ -73,23 +79,20 @@ init python:
 
         def parse_version(self):
 
-            with open(self.cleaner_file, "rb") as fl:
-                for line in fl:
-                    line = line.decode("utf-8", "ignore").strip()
-                    if not line:
-                        continue
-                    ver_search = self.version_re.search(line)
-                    if ver_search:
-                        ver = filter_fix(
-                            bool,
-                            fix_map(
-                                (lambda x: x.strip()),
-                                ver_search.group().split("=")
-                            )
-                        )[-1]
-                        break
-                else:
-                    ver = u"+inf"
-            return float(ver)
+            with open(self.__cleaner_file, "rb") as fl:
+                data = fl.read()
+            ver = re.search(r"(?<=__version__ = \()[^)]+(?=\))", data)
+            if not ver:
+                return tuple(bltIn.map(lambda x: float("+inf"), xrange(3)))
+            ver = ver.group()
+            return tuple(
+                bltIn.map(
+                    bltIn.int,
+                    bltIn.filter(
+                        lambda b: b.isdigit(),
+                        bltIn.map(lambda a: a.strip(), ver.split(','))
+                    )
+                )
+            )
 
-    CleanerInitializer().start_copy()
+    __CleanerInitializer().start_copy()
