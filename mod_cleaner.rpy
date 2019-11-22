@@ -25,16 +25,16 @@ init 410:
         $ NLT_tl["open_ws_page"] = ("Открыть страницу мода в мастерской", "Open mod workshop page")
         $ NLT_tl["open_log"] = ("Открыть файл отчёта", "Open log file")
 
-screen NLT_cleaner tag NLT:
+screen NLT_cleaner:
     modal True
-
+    tag NLT
     window background get_image("gui/settings/preferences_bg.jpg"):
         hbox xalign 0.5 yalign 0.08:
             add get_image("gui/settings/star.png") yalign 0.65
             text " " + NLT_tl["mod_cleaner"][NLT_lang] + " " style "settings_link" yalign 0.5 color "#ffffff"
             add get_image("gui/settings/star.png") yalign 0.65
-        textbutton translation["Back"][_preferences.language] style "log_button" text_style "settings_link" xalign 0.015 yalign 0.92 action Show("NLT_main_menu", transition=dspr)
-
+        textbutton translation_new["Back"] style "log_button" text_style "settings_link" xalign 0.015 yalign 0.92 action Show("NLT_main_menu", transition=dspr)
+        
         side "c b r":
             area (0.25, 0.23, 0.51, 0.71)
             viewport id "NLT_menu":
@@ -52,13 +52,3 @@ screen NLT_cleaner tag NLT:
 
             bar value XScrollValue("NLT_menu") left_bar "images/misc/none.png" right_bar "images/misc/none.png" thumb "images/misc/none.png" hover_thumb "images/misc/none.png"
             vbar value YScrollValue("NLT_menu") bottom_bar "images/misc/none.png" top_bar "images/misc/none.png" thumb "images/gui/settings/vthumb.png" thumb_offset -12
-
-label NLT_after_clean:
-    stop music fadeout 1
-    scene black with dissolve
-    $ NLT_game_restarting = NLT_tl["game_restarting"][NLT_lang]
-    show text "{=credits}{size=50}[NLT_game_restarting]{/size}" at truecenter with dspr
-    pause 1
-    $ renpy.quit(relaunch=True)
-    return
-# Unpacked by VladyaBot-decompiler-module on 28 September 2017. 03:56:17.
