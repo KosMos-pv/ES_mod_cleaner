@@ -26,6 +26,7 @@ import subprocess
 import io
 
 FSENCODING = sys.getfilesystemencoding() or "utf-8"
+ws_cleaner = True # Make sure workshop cleaner is installed
 
 # Sets the default encoding to the filesystem encoding.
 old_stdout = sys.stdout

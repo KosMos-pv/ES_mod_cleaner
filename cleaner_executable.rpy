@@ -8,6 +8,38 @@ init python:
         path
     )
 
+    if persistent.cleaner_unsupported_renpy == None:
+        persistent.cleaner_unsupported_renpy = False
+
+    if _preferences.language == None:
+        cleaner_installed = u"""
+
+                New Life Team Mod Cleaner успешно установлен или обновлён.
+                Необходимо перезапустить игру, чтобы мод начал работать.
+                """
+        cleaner_unsupported = u"""
+
+                Неподдерживаемая версия Ren'py!
+
+                Игра была обновлена до более новой версии движка, и теперь New Life Team Mod Cleaner не работает.
+                Данное сообщение не является критической ошибкой и показывается только один раз, поэтому просто перезапустите игру.
+                В ближайшее время разработчики Mod Cleaner выпустят обновление для совместимости с новой версией движка игры.
+                """
+    else:
+        cleaner_installed = u"""
+
+                New Life Team Mod Cleaner has been successfully installed or updated.
+                You must restart the game for the mod to start working.
+                """
+        cleaner_unsupported = u"""
+
+                Unsupported version of Ren'py!
+
+                The game has been updated to a newer version of the engine, and now New Life Team Mod Cleaner does not work.
+                This message is not a critical error and is shown only once, so just restart the game.
+                In the near future, the developers of Mod Cleaner will release an update for compatibility with the new version of the game engine.
+                """
+
     class __CleanerInitializer(object):
 
         def __init__(self):
@@ -63,10 +95,24 @@ init python:
                 )
                 filecopy(self.__modified_bootstrap, self.__original_bootstrap)
                 filecopy(self.__cleaner_file, self.__actual_cleaner)
+                raise Exception(cleaner_installed)
 
         def is_need_copy(self):
 
+            if renpy.version(tuple=False) == "Ren'Py 7.0.0.196":
+                persistent.cleaner_unsupported_renpy = False
+            else:
+                if persistent.cleaner_unsupported_renpy == False:
+                    persistent.cleaner_unsupported_renpy = True
+                    renpy.save_persistent()
+                    raise Exception(cleaner_unsupported)
+                else:
+                    return False
             if not path.isfile(self.__actual_cleaner):
+                return True
+            try:
+                from renpy.bootstrap import ws_cleaner
+            except ImportError:
                 return True
             try:
                 from renpy.clean_workshop import __version__ as ver
