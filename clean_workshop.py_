@@ -18,7 +18,7 @@ from shutil import (
 )
 
 
-__version__ = (3, 1, 1)  # (majorVer, minorVer, patch)
+__version__ = (3, 1, 2)  # (majorVer, minorVer, patch)
 
 
 class _ModsDataBase(FancyURLopener, object):
@@ -27,7 +27,7 @@ class _ModsDataBase(FancyURLopener, object):
         "https://steamcommunity.com/"
         "sharedfiles/filedetails/?l=russian&id={data}"
     )
-    FIRST_MOD_ID = 354379109
+    FIRST_MOD_ID = 354089351
 
     NOT_NAME_TITLE = u"Mod name is not detected (Dir id: {0})"
 
