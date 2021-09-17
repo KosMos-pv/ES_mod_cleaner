@@ -24,31 +24,29 @@ init 410:
         )
         $ NLT_tl["open_ws_page"] = ("Открыть страницу мода в мастерской", "Open mod workshop page")
         $ NLT_tl["open_log"] = ("Открыть файл отчёта", "Open log file")
+        $ NLT_tl["cant_open_cleaner_log"] = ("Не удалось открыть отчёт удаления модов.", "Couldn't open cleaner log.")
 
+init -10:
+    screen NLT_interface(mod, type="mod", scroll=False):
+        null
+        
 screen NLT_cleaner:
     modal True
     tag NLT
-    window background get_image("gui/settings/preferences_bg.jpg"):
-        hbox xalign 0.5 yalign 0.08:
-            add get_image("gui/settings/star.png") yalign 0.65
-            text " " + NLT_tl["mod_cleaner"][NLT_lang] + " " style "settings_link" yalign 0.5 color "#ffffff"
-            add get_image("gui/settings/star.png") yalign 0.65
-        textbutton translation_new["Back"] style "log_button" text_style "settings_link" xalign 0.015 yalign 0.92 action Show("NLT_main_menu", transition=dspr)
-        
-        side "c b r":
-            area (0.25, 0.23, 0.51, 0.71)
-            viewport id "NLT_menu":
-                mousewheel True
-                scrollbars None
-                has vbox xfill True spacing 15
-                null height 15
-                text NLT_tl["mod_cleaner_descr"][NLT_lang] style "settings_text" xpos 0.1 xmaximum 0.8
-                if NLT_platform() == "win":
-                    text NLT_tl["windows_log_file"][NLT_lang] style "settings_text" xpos 0.1 xmaximum 0.8
-                    textbutton NLT_tl["open_ws_page"][NLT_lang] style "log_button" text_style "settings_header" xalign 0.5 action OpenURL("steam://url/CommunityFilePage/930965068")
-                    textbutton NLT_tl["open_log"][NLT_lang] style "log_button" text_style "settings_header" xalign 0.5 action Function(NLT_open_file, "deleted_mods.txt")
-                else:
-                    text NLT_tl["others_log_file"][NLT_lang] style "settings_text" xpos 0.1 xmaximum 0.8
+    use NLT_interface(NLT_tl["mod_cleaner"][NLT_lang]):
+        viewport id "NLT_menu":
+            mousewheel True
+            scrollbars None
+            has vbox xfill True spacing 15
+            null height 15
+            text NLT_tl["mod_cleaner_descr"][NLT_lang] style "settings_text" xpos 0.05 xmaximum 0.85
+            if NLT_platform() == "win":
+                text NLT_tl["windows_log_file"][NLT_lang] style "settings_text" xpos 0.05 xmaximum 0.85
+                textbutton NLT_tl["open_ws_page"][NLT_lang] style "log_button" text_style "settings_header" xalign 0.5 action OpenURL("steam://url/CommunityFilePage/930965068")
+                textbutton NLT_tl["open_log"][NLT_lang] style "log_button" text_style "settings_header" xalign 0.5 action Function(NLT_open_file, "deleted_mods.txt")
+            else:
+                text NLT_tl["others_log_file"][NLT_lang] style "settings_text" xpos 0.05 xmaximum 0.85
+            if NLT_error:
+                text NLT_tl["cant_open_cleaner_log"][NLT_lang] style "settings_text" xalign 0.5
 
-            bar value XScrollValue("NLT_menu") left_bar "images/misc/none.png" right_bar "images/misc/none.png" thumb "images/misc/none.png" hover_thumb "images/misc/none.png"
-            vbar value YScrollValue("NLT_menu") bottom_bar "images/misc/none.png" top_bar "images/misc/none.png" thumb "images/gui/settings/vthumb.png" thumb_offset -12
+    on "replace" action SetVariable("NLT_error", False)

@@ -99,7 +99,7 @@ init python:
 
         def is_need_copy(self):
 
-            if renpy.version(tuple=False) == "Ren'Py 7.3.5.606":
+            if renpy.version(tuple=False) == "Ren'Py 7.4.8.1895":
                 persistent.cleaner_unsupported_renpy = False
             else:
                 if persistent.cleaner_unsupported_renpy == False:
